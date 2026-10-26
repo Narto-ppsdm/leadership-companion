@@ -10,6 +10,28 @@ export default function FasilitatorPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'wleis' | 'notes'>('wleis');
 
+  // STATE UNTUK PASSWORD
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  
+  // Cek apakah udah pernah login di browser ini
+  useEffect(() => {
+    const auth = localStorage.getItem('fasilitator_auth');
+    if (auth === 'true') setIsAuthenticated(true);
+  }, []);
+
+  const handleLoginFasilitator = (e: React.FormEvent) => {
+    e.preventDefault();
+    // PASSWORD RAHASIA (Bisa diganti sesuka hati)
+    if (passwordInput === 'upnvj2026') { 
+      setIsAuthenticated(true);
+      localStorage.setItem('fasilitator_auth', 'true');
+    } else {
+      alert('Password salah!');
+      setPasswordInput('');
+    }
+  };
+
   // --- STATE UNTUK FITUR AI ---
   const [selectedMods, setSelectedMods] = useState<number[]>([1, 2, 6, 9, 10]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -70,6 +92,39 @@ export default function FasilitatorPage() {
   };
 
   return (
+      // JIKA BELUM LOGIN, TAMPILKAN LAYAR KUNCI
+  if (!isAuthenticated) {
+    return (
+      <main className="flex min-h-[100dvh] items-center justify-center bg-gray-100 p-6">
+        <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full border-t-4 border-green-500">
+          <h1 className="text-2xl font-bold text-center text-gray-800 mb-2">Akses Fasilitator</h1>
+          <p className="text-center text-sm text-gray-500 mb-6">Halaman ini khusus untuk panitia/narasumber LDK.</p>
+          
+          <form onSubmit={handleLoginFasilitator} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Masukkan Password Fasilitator</label>
+              <input 
+                type="password" 
+                value={passwordInput} 
+                onChange={(e) => setPasswordInput(e.target.value)} 
+                placeholder="••••••••"
+                className="w-full border border-gray-300 rounded-lg p-3 text-base text-black focus:ring-2 focus:ring-green-500" 
+              />
+            </div>
+            <button 
+              type="submit" 
+              className="w-full bg-green-600 text-white font-semibold py-3 rounded-lg hover:bg-green-700 transition"
+            >
+              Buka Dashboard
+            </button>
+            <Link href="/" className="block text-center text-gray-500 text-sm hover:underline mt-2">
+              &larr; Kembali ke Beranda
+            </Link>
+          </form>
+        </div>
+      </main>
+    );
+  }
     <main className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-6xl mx-auto">
         
@@ -86,7 +141,15 @@ export default function FasilitatorPage() {
             >
               📥 Generate Master PPTX
             </a>
-            <Link href="/" className="text-red-500 text-sm font-semibold hover:underline">Keluar</Link>
+                        <button 
+              onClick={() => {
+                localStorage.removeItem('fasilitator_auth');
+                setIsAuthenticated(false);
+              }} 
+              className="text-red-500 text-sm font-semibold hover:underline"
+            >
+              Keluar
+            </button>
           </div>
         </div>
 
