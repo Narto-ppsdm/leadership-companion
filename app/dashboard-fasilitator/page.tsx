@@ -14,6 +14,11 @@ export default function FasilitatorPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   
+  // STATE UNTUK FITUR AI
+  const [selectedMods, setSelectedMods] = useState<number[]>([1, 2, 6, 9, 10]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [strategicPlan, setStrategicPlan] = useState<string | null>(null);
+
   // Cek apakah udah pernah login di browser ini
   useEffect(() => {
     const auth = localStorage.getItem('fasilitator_auth');
@@ -22,7 +27,6 @@ export default function FasilitatorPage() {
 
   const handleLoginFasilitator = (e: React.FormEvent) => {
     e.preventDefault();
-    // PASSWORD RAHASIA (Bisa diganti sesuka hati)
     if (passwordInput === 'upnvj2026') { 
       setIsAuthenticated(true);
       localStorage.setItem('fasilitator_auth', 'true');
@@ -31,11 +35,6 @@ export default function FasilitatorPage() {
       setPasswordInput('');
     }
   };
-
-  // --- STATE UNTUK FITUR AI ---
-  const [selectedMods, setSelectedMods] = useState<number[]>([1, 2, 6, 9, 10]);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [strategicPlan, setStrategicPlan] = useState<string | null>(null);
 
   const handleCheckboxChange = (modId: number) => {
     if (selectedMods.includes(modId)) {
@@ -73,14 +72,14 @@ export default function FasilitatorPage() {
     setIsLoading(true);
     
     // Ambil data WLEIS
-    const { data: wleis, error: wleisError } = await supabase
+    const { data: wleis } = await supabase
       .from('individual_submissions')
       .select('*')
       .eq('module_id', 4)
       .order('created_at', { ascending: false });
 
     // Ambil data Catatan Pribadi
-    const { data: notes, error: notesError } = await supabase
+    const { data: notes } = await supabase
       .from('other_module_notes')
       .select('*')
       .order('created_at', { ascending: false });
@@ -91,8 +90,9 @@ export default function FasilitatorPage() {
     setIsLoading(false);
   };
 
-  return (
-      // JIKA BELUM LOGIN, TAMPILKAN LAYAR KUNCI
+  // ==========================================
+  // JIKA BELUM LOGIN, TAMPILKAN LAYAR KUNCI
+  // ==========================================
   if (!isAuthenticated) {
     return (
       <main className="flex min-h-[100dvh] items-center justify-center bg-gray-100 p-6">
@@ -125,6 +125,11 @@ export default function FasilitatorPage() {
       </main>
     );
   }
+
+  // ==========================================
+  // JIKA SUDAH LOGIN, TAMPILKAN DASHBOARD
+  // ==========================================
+  return (
     <main className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-6xl mx-auto">
         
@@ -141,7 +146,7 @@ export default function FasilitatorPage() {
             >
               📥 Generate Master PPTX
             </a>
-                        <button 
+            <button 
               onClick={() => {
                 localStorage.removeItem('fasilitator_auth');
                 setIsAuthenticated(false);
@@ -192,25 +197,25 @@ export default function FasilitatorPage() {
             ))}
           </div>
 
-          <button
-            onClick={handleGenerateStrategy}
-            disabled={isAnalyzing}
-            className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-indigo-700 transition disabled:opacity-50"
-          >
-            {isAnalyzing ? 'AI Sedang Menganalisis...' : '✨ Generate Rancangan Strategis'}
-          </button>
+          <div className="flex flex-col md:flex-row gap-3">
+            <button
+              onClick={handleGenerateStrategy}
+              disabled={isAnalyzing}
+              className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-indigo-700 transition disabled:opacity-50"
+            >
+              {isAnalyzing ? 'AI Sedang Menganalisis...' : '✨ Generate Rancangan Strategis'}
+            </button>
+            <button 
+              onClick={() => {
+                window.location.href = `/api/generate-strategic-pptx?modules=${selectedMods.join(',')}`;
+              }}
+              disabled={isAnalyzing || selectedMods.length === 0}
+              className="bg-green-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-green-700 transition disabled:opacity-50"
+            >
+              📥 Download Rancangan (PPTX)
+            </button>
+          </div>
         </div>
-
-          <button 
-            onClick={() => {
-              // Mengirim daftar modul yang dicentang ke API PPT
-              window.location.href = `/api/generate-strategic-pptx?modules=${selectedMods.join(',')}`;
-            }}
-            disabled={isAnalyzing || selectedMods.length === 0}
-            className="mt-3 md:mt-0 md:ml-3 w-full md:w-auto bg-green-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-green-700 transition disabled:opacity-50"
-          >
-            📥 Download Rancangan (PPTX)
-          </button>
 
         {/* Tampilan Hasil AI */}
         {strategicPlan && (
