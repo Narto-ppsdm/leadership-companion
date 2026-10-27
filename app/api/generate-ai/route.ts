@@ -83,6 +83,26 @@ export async function POST(req: Request) {
         Fokuskan evaluasi pada: Apakah pertanyaan/arahan coaching mereka sudah menggali potensi mentee? Apakah rencana aksinya (Will) realistis dan terukur?
       `;
 
+    } else if (body.type === 'wleis-baru') {
+      prompt = `
+        Kamu adalah Coach Kepemimpinan Akademik.
+        Seorang dosen telah mengisi Refleksi Emotional Intelligence & Profesionalisme.
+        
+        Berikut skor rata-rata mereka per dimensi (skala 1-5):
+        ${JSON.stringify(body.skorDimensi)}
+        
+        Isian lanjutan mereka:
+        - Kekuatan yang dipertahankan: "${body.kekuatan}"
+        - Fokus latihan: "${body.fokus}"
+        - Tindakan konkret: "${body.tindakan}"
+        - Situasi pemicu: "${body.pemicu}"
+        - Strategi pribadi: "${body.strategi}"
+        
+        Tugasmu:
+        Berikan review singkat (maksimal 150 kata) dalam bahasa Indonesia yang suportif dan profesional.
+        Apresiasi fokus latihan yang mereka pilih. Berikan 1-2 saran praktis agar "Tindakan Konkret" dan "Strategi Pribadi" mereka bisa benar-benar berhasil saat menghadapi "Situasi Pemicu".
+      `;
+
     } else {
       return NextResponse.json({ feedback: 'Tipe permintaan AI tidak dikenali.' }, { status: 400 });
     }

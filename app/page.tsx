@@ -568,7 +568,9 @@ function ModuleCard({ modul, setView, setActiveModule, isMobile = false }: { mod
         {modul.isCak ? (
           <>
             {modul.id === 4 && (
-              <button onClick={() => setView('form-wleis')} className={`w-full bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 active:scale-[0.98] transition ${isMobile ? 'py-4 text-lg' : 'py-2 text-sm'}`}>Masuk ke Sesi</button>
+              <Link href="/modul-4-baru" className={`block text-center bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 active:scale-[0.98] transition ${isMobile ? 'py-4 text-lg' : 'py-2 text-sm'}`}>
+                Masuk ke Sesi
+              </Link>
             )}
             {modul.id === 3 && (
               <Link href="/modul-3" className={`block text-center bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 active:scale-[0.98] transition ${isMobile ? 'py-4 text-lg' : 'py-2 text-sm'}`}>Masuk ke Sesi</Link>
@@ -582,6 +584,7 @@ function ModuleCard({ modul, setView, setActiveModule, isMobile = false }: { mod
             {modul.id === 8 && (
               <Link href="/modul-8" className={`block text-center bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 active:scale-[0.98] transition ${isMobile ? 'py-4 text-lg' : 'py-2 text-sm'}`}>Masuk ke Sesi</Link>
             )}
+            
             {/* Modul 9 & 10 sementara "Segera Hadir" dll */}
             {/* Modul 9 & 10 sementara "Segera Hadir" dll */}
             {modul.id !== 3 && modul.id !== 4 && modul.id !== 6 && modul.id !== 7 && modul.id !== 8 && (
