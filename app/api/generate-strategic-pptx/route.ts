@@ -40,7 +40,7 @@ export async function GET(req: Request) {
     });
 
     // 3. Prompt AI (Kita minta output berupa format JSON biar gampang di-parsing)
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }); // Pastikan ganti ke 3.5-flash jika perlu
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' }); // Pastikan ganti ke 3.5-flash jika perlu
     const prompt = `
       Kamu adalah Konsultan Strategis Pendidikan Tinggi. 
       Berdasarkan data dari kelompok-kelompok dosen FK UPNVJ berikut:
