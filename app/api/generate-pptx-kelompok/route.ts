@@ -87,7 +87,7 @@ export async function GET(req: Request) {
     let slide1 = pptx.addSlide();
     slide1.background = { color: "1E3A8A" };
     slide1.addText(`HASIL DISKUSI KELOMPOK ${groupId}`, { x: 1, y: 2, w: 8, h: 1, fontSize: 40, color: "FFFFFF", bold: true, align: "center" });
-    slide1.addText(`Materi: ${moduleId === 'all' ? 'Semua Modul' : 'Modul ' + moduleId}\nLDK FK UPN "Veteran" Jakarta`, { x: 1, y: 3.2, w: 8, h: 1, fontSize: 20, color: "E2E8F0", align: "center" });
+    slide1.addText(`Materi: ${moduleId || moduleId === 'all' ? 'Semua Modul' : 'Modul ' + moduleId}\nLDK FK UPN "Veteran" Jakarta`, { x: 1, y: 3.2, w: 8, h: 1, fontSize: 20, color: "E2E8F0", align: "center" });
 
     // Slide 2: Hasil AI (Proyek & Roadmap)
     let slide2 = pptx.addSlide();
