@@ -39,7 +39,7 @@ export async function GET() {
     }
 
     // 4. Minta AI untuk Mensintesis
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
     const prompt = `
       Kamu adalah Konsultan Strategis Pendidikan Tinggi.
       Di bawah ini adalah kumpulan data mentah dari 6 kelompok dosen FK UPNVJ. Mereka telah melakukan analisis SWOT dan menyusun Roadmap 2027-2030.

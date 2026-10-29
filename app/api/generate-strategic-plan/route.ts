@@ -41,7 +41,7 @@ export async function POST(req: Request) {
     });
 
     // 3. Prompt AI
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' }); // Ganti ke 2.5-flash jika perlu
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' }); // Ganti ke 2.5-flash jika perlu
     const prompt = `
       Kamu adalah Konsultan Strategis Pendidikan Tinggi. 
       Di bawah ini adalah kumpulan hasil pemikiran dosen-dosen dari beberapa kelompok di FK UPNVJ berdasarkan modul yang dipilih.
