@@ -1,121 +1,125 @@
 import { NextResponse } from 'next/server';
 import pptxgen from 'pptxgenjs';
 import { createClient } from '@supabase/supabase-js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+const apiKey = process.env.GEMINI_API_KEY || '';
+const genAI = new GoogleGenerativeAI(apiKey);
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const groupId = searchParams.get('group');
+    const moduleId = searchParams.get('module');
 
     if (!groupId) {
       return NextResponse.json({ error: 'Parameter group wajib diisi' }, { status: 400 });
     }
 
-    // 1. Ambil data khusus untuk kelompok ini
-    const { data: submissions, error } = await supabase
-      .from('individual_submissions')
-      .select('*')
-      .eq('payload->>group', groupId)
-      .order('module_id', { ascending: true });
+    // 1. Ambil data dari Supabase
+    let query = supabase.from('individual_submissions').select('*').eq('payload->>group', groupId);
+    if (moduleId && moduleId !== 'all') query = query.eq('module_id', parseInt(moduleId));
+    const { data: subData } = await query;
 
-    if (error) throw error;
+    let queryNotes = supabase.from('other_module_notes').select('*').eq('group', groupId);
+    if (moduleId && moduleId !== 'all') queryNotes = queryNotes.eq('module_id', parseInt(moduleId));
+    const { data: notesData } = await queryNotes;
 
-    // 2. Siapkan file PowerPoint
+    const { data: projData } = await supabase.from('group_project_data').select('*').eq('group_id', groupId).single();
+
+    // 2. Gabungkan data
+    const submissions = [
+      ...(subData || []),
+      ...(notesData || []).map((n: any) => ({
+        module_id: n.module_id,
+        payload: { name: n.user_id },
+        reflection: n.reflection,
+        learning_notes: n.learning_notes
+      }))
+    ];
+
+    // 3. Kirim ke AI untuk diringkas
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }); // Atau 2.5-flash
+    
+    // Susun teks data
+    let dataTeks = `Data Kelompok ${groupId}:\n`;
+    if (projData) {
+      dataTeks += `Proyek: ${projData.project_title}\nMasalah: ${projData.main_problem}\nRoadmap 2027: ${projData.roadmap_2027}\nIndikator: ${projData.indicators}\n`;
+    }
+    
+    // Tambahkan data SWOT dari individu jika ada
+    const swotSub = submissions.filter(s => s.module_id === 6);
+    swotSub.forEach(s => {
+      dataTeks += `SWOT (${s.payload?.name}): ${s.payload?.action_plan}\n`;
+    });
+
+    const prompt = `
+      Kamu adalah Konsultan Strategis Pendidikan Tinggi. 
+      Rangkum data mentah dari kelompok dosen FK UPNVJ ini menjadi poin-poin presentasi PowerPoint yang padat, profesional, dan menggunakan bahasa akademik.
+      
+      DATA MENTAH:
+      ${dataTeks}
+      
+      KEMBALIKAN DALAM FORMAT JSON (Tanpa markdown \`\`\`json):
+      {
+        "judul_proyek": "...",
+        "masalah_utama": "...",
+        "ringkasan_swot": "1-2 kalimat kesimpulan SWOT...",
+        "roadmap_2027": "...",
+        "roadmap_2030": "...",
+        "indikator": "..."
+      }
+    `;
+
+    const result = await model.generateContent(prompt);
+    let text = result.response.text().replace(/```json/g, '').replace(/```/g, '').trim();
+    const aiData = JSON.parse(text);
+
+    // 4. Bikin File PowerPoint
     let pptx = new pptxgen();
     pptx.layout = 'LAYOUT_16x9';
 
-    // --- SLIDE 1: COVER KELOMPOK ---
+    // Slide 1: Cover
     let slide1 = pptx.addSlide();
-    slide1.background = { color: "1E3A8A" }; // Biru UPNVJ
+    slide1.background = { color: "1E3A8A" };
     slide1.addText(`HASIL DISKUSI KELOMPOK ${groupId}`, { x: 1, y: 2, w: 8, h: 1, fontSize: 40, color: "FFFFFF", bold: true, align: "center" });
-    slide1.addText("Latihan Dasar Kepemimpinan (LDK)\nFK UPN \"Veteran\" Jakarta", { x: 1, y: 3.2, w: 8, h: 1, fontSize: 20, color: "E2E8F0", align: "center" });
+    slide1.addText(`Materi: ${moduleId === 'all' ? 'Semua Modul' : 'Modul ' + moduleId}\nLDK FK UPN "Veteran" Jakarta`, { x: 1, y: 3.2, w: 8, h: 1, fontSize: 20, color: "E2E8F0", align: "center" });
 
-    // --- SLIDE 2: DAFTAR ANGGOTA & PROYEK ---
+    // Slide 2: Hasil AI (Proyek & Roadmap)
     let slide2 = pptx.addSlide();
-    slide2.addText(`Profil Kelompok ${groupId}`, { x: 0.5, y: 0.5, w: 9, h: 0.8, fontSize: 28, bold: true, color: "1E3A8A" });
+    slide2.addText(`Ringkasan Proyek Kelompok`, { x: 0.5, y: 0.5, w: 9, h: 0.8, fontSize: 28, bold: true, color: "1E3A8A" });
+    slide2.addText(`Judul Proyek: ${aiData.judul_proyek || '-'}\nMasalah Utama: ${aiData.masalah_utama || '-'}`, { x: 0.5, y: 1.5, w: 9, h: 1.5, fontSize: 18 });
     
-    // Ambil nama unik anggota
-    const members = [...new Set(submissions.map(s => s.payload?.name || 'Anonim'))];
-    slide2.addText(`Anggota Kelompok:\n- ${members.join('\n- ')}`, { x: 0.5, y: 1.5, w: 9, h: 2, fontSize: 18, color: "333333" });
+    slide2.addText(`Strategi & SWOT:\n${aiData.ringkasan_swot || '-'}`, { x: 0.5, y: 3.2, w: 9, h: 1.5, fontSize: 16, fill: { color: "F1F5F9" } });
 
-    // Cari judul proyek dari Modul 3 (jika ada)
-    const modul3 = submissions.find(s => s.module_id === 3);
-    if (modul3 && modul3.payload?.projectName) {
-      slide2.addText(`Proyek Kelompok:\n"${modul3.payload.projectName}"`, { x: 0.5, y: 4, w: 9, h: 1, fontSize: 20, bold: true, color: "065F46", fill: { color: "D1FAE5" } });
-    }
+    // Slide 3: Roadmap AI
+    let slide3 = pptx.addSlide();
+    slide3.addText(`Roadmap Strategis 2027-2030`, { x: 0.5, y: 0.5, w: 9, h: 0.8, fontSize: 28, bold: true, color: "1E3A8A" });
+    slide3.addText(`Tahap 2027:\n${aiData.roadmap_2027 || '-'}`, { x: 0.5, y: 1.5, w: 9, h: 1, fontSize: 16 });
+    slide3.addText(`Tahap 2030:\n${aiData.roadmap_2030 || '-'}`, { x: 0.5, y: 3, w: 9, h: 1, fontSize: 16 });
+    slide3.addText(`Indikator & PIC:\n${aiData.indikator || '-'}`, { x: 0.5, y: 4.2, w: 9, h: 1, fontSize: 14, italic: true });
 
-        // 3. Susun Slide berdasarkan "Benang Merah" Peta Konsep
-    const urutanModul = [1, 5, 2, 3, 4, 6, 7, 8, 9, 10];
-    const judulModul = {
-      1: "Landasan: Paradigma Baru Kepemimpinan",
-      2: "Pengembangan: Kepemimpinan Transformasional",
-      3: "Pengembangan: Leadership Communication",
-      4: "Pengembangan: Emotional Intelligence & Profesionalisme",
-      5: "Landasan: Ethical Leadership & Integritas",
-      6: "Pengembangan: Strategic Leadership & Tata Kelola",
-      7: "Pengembangan: Conflict Management & Collaborative",
-      8: "Pengembangan: Mentoring & Coaching",
-      9: "Pengembangan: Leading Change",
-      10: "Hasil Akhir: Becoming Future Medical Education Leaders"
-    };
-
-    urutanModul.forEach((modId) => {
-      const modData = submissions.filter(s => s.module_id === modId);
-      
-      if (modData.length === 0) return;
-
-      let slide = pptx.addSlide();
-      slide.addText(judulModul[modId as keyof typeof judulModul], { x: 0.5, y: 0.5, w: 9, h: 0.8, fontSize: 24, bold: true, color: "1E3A8A" });
-      
-      let yPos = 1.5;
-
-      modData.forEach((sub, index) => {
-        if (yPos > 4.5) return;
-
-        let textContent = `${index + 1}. ${sub.payload?.name || 'Anonim'}:\n`;
-
-        if (modId === 3) {
-          textContent += `Temuan: ${sub.payload.temuan}\nUsulan: ${sub.payload.usulan}`;
-        } else if (modId === 4) {
-          textContent += `Skor EQ: ${sub.total_score}/80. Insight: ${sub.payload.learning_notes || '-'}`;
-        } else if (modId === 6) {
-          textContent += `Aspek: ${sub.payload.aspek}. Roadmap: ${sub.payload.action_plan}`;
-        } else if (modId === 7) {
-          textContent += `Solusi Konflik: ${sub.payload.langkah_resolusi}`;
-        } else if (modId === 8) {
-          textContent += `Goal: ${sub.payload.grow.goal}. Aksi: ${sub.payload.grow.will}`;
-        } else {
-          textContent += `Refleksi: ${sub.reflection || '-'}`;
-        }
-
-        slide.addText(textContent, { x: 0.5, y: yPos, w: 9, h: 1.2, fontSize: 12, fill: { color: "F1F5F9" } });
-        yPos += 1.4;
-      });
-    });
-
-    // 4. Simpan ke tabel group_artifacts (Supabase)
+    // 5. Simpan Log & Kirim File
     await supabase.from('group_artifacts').insert({
       group_id: parseInt(groupId),
-      file_name: `Hasil_Diskusi_Kelompok_${groupId}.pptx`,
+      file_name: `Hasil_AI_Kelompok_${groupId}.pptx`,
     });
 
-    // 5. Kirim file
     const buffer = await pptx.write({ outputType: "nodebuffer" });
-    
     return new NextResponse(buffer, {
       status: 200,
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        "Content-Disposition": `attachment; filename="Kelompok_${groupId}_LDK.pptx"`,
+        "Content-Disposition": `attachment; filename="Kelompok_${groupId}_AI_Presentation.pptx"`,
       },
     });
 
   } catch (error: any) {
-    console.error("PPTX Error:", error);
+    console.error("PPTX AI Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
