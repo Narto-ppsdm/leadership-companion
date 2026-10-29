@@ -43,7 +43,7 @@ export async function GET(req: Request) {
     ];
 
     // 3. Kirim ke AI untuk diringkas
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }); // Atau 2.5-flash
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' }); // Atau 2.5-flash
     
     // Susun teks data
     let dataTeks = `Data Kelompok ${groupId}:\n`;
