@@ -1,5 +1,6 @@
 'use client';
-import { useState, useEffect } from 'react';
+
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/utils/supabase';
 import Link from 'next/link';
 
@@ -9,46 +10,7 @@ export default function KelompokPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  useEffect(() => {
-    const savedGroup = localStorage.getItem('peserta_group') || '1';
-    setGroup(savedGroup);
-    fetchGroupData(savedGroup);
-  }, []);
-
-  const fetchGroupData = async (grp: string) => {
-    setIsLoading(true);
-    
-    // 1. Ambil data modul khusus (3,4,6,7,8)
-    const { data: submissionsData } = await supabase
-      .from('individual_submissions')
-      .select('*')
-      .eq('payload->>group', grp);
-    
-    // 2. Ambil data Catatan Pribadi (1,2,5,9,10)
-    const { data: notesData } = await supabase
-      .from('other_module_notes')
-      .select('*')
-      .eq('group', grp); // Filter berdasarkan kelompok
-
-    // 3. Gabungkan dua-duanya
-    const combinedData = [
-      ...(submissionsData || []),
-      ...(notesData || []).map((note: any) => ({
-        module_id: note.module_id,
-        payload: { name: note.user_id }, // Ambil nama dari user_id
-        reflection: note.reflection,
-        isNote: true
-      }))
-    ];
-
-    // 4. Urutkan berdasarkan nomor modul (1, 3, 4, dst)
-    combinedData.sort((a, b) => a.module_id - b.module_id);
-
-    setSubmissions(combinedData);
-    setIsLoading(false);
-  };
-
-    // STATE ROADMAP KELOMPOK
+  // STATE ROADMAP KELOMPOK
   const [projectTitle, setProjectTitle] = useState('');
   const [mainProblem, setMainProblem] = useState('');
   const [negosiasi, setNegosiasi] = useState('');
@@ -59,27 +21,61 @@ export default function KelompokPage() {
   const [indicators, setIndicators] = useState('');
   const [risks, setRisks] = useState('');
   const [isSavingProj, setIsSavingProj] = useState(false);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false); // <-- State AI
 
-  // Load data roadmap kalau udah pernah disimpan
   useEffect(() => {
-    const fetchProject = async () => {
-      const { data } = await supabase.from('group_project_data').select('*').eq('group_id', group).single();
-      if (data) {
-        setProjectTitle(data.project_title || '');
-        setMainProblem(data.main_problem || '');
-        setNegosiasi(data.negotiation_summary || '');
-        setTh2027(data.roadmap_2027 || '');
-        setTh2028(data.roadmap_2028 || '');
-        setTh2029(data.roadmap_2029 || '');
-        setTh2030(data.roadmap_2030 || '');
-        setIndicators(data.indicators || '');
-        setRisks(data.risks || '');
-      }
-    };
-    if (group) fetchProject();
-  }, [group]);
+    const savedGroup = localStorage.getItem('peserta_group') || '1';
+    setGroup(savedGroup);
+    fetchGroupData(savedGroup);
+    fetchProjectData(savedGroup);
+  }, []);
 
-  // Fungsi Simpan
+  const fetchGroupData = async (grp: string) => {
+    setIsLoading(true);
+    const { data: submissionsData } = await supabase.from('individual_submissions').select('*').eq('payload->>group', grp);
+    const { data: notesData } = await supabase.from('other_module_notes').select('*').eq('group', grp);
+
+    const combinedData = [
+      ...(submissionsData || []),
+      ...(notesData || []).map((note: any) => ({
+        module_id: note.module_id,
+        payload: { name: note.user_id },
+        reflection: note.reflection,
+        isNote: true
+      }))
+    ];
+
+    combinedData.sort((a, b) => a.module_id - b.module_id);
+    setSubmissions(combinedData);
+    setIsLoading(false);
+  };
+
+  const fetchProjectData = async (grp: string) => {
+    const { data } = await supabase.from('group_project_data').select('*').eq('group_id', grp).single();
+    if (data) {
+      setProjectTitle(data.project_title || '');
+      setMainProblem(data.main_problem || '');
+      setNegosiasi(data.negotiation_summary || '');
+      setTh2027(data.roadmap_2027 || '');
+      setTh2028(data.roadmap_2028 || '');
+      setTh2029(data.roadmap_2029 || '');
+      setTh2030(data.roadmap_2030 || '');
+      setIndicators(data.indicators || '');
+      setRisks(data.risks || '');
+    }
+  };
+
+  const handleGenerateGroupPPT = async () => {
+    setIsGenerating(true);
+    try {
+      window.location.href = `/api/generate-pptx-kelompok?group=${group}`;
+    } catch (error) {
+      alert('Gagal generate PPT');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const handleSaveRoadmap = async () => {
     setIsSavingProj(true);
     const payload = {
@@ -98,26 +94,47 @@ export default function KelompokPage() {
     setIsSavingProj(false);
   };
 
-  const handleGenerateGroupPPT = async () => {
-    setIsGenerating(true);
+  const handleGenerateAIRoadmap = async () => {
+    if (!confirm('AI akan menyusun draf Roadmap dari hasil SWOT kelompok Anda. Lanjutkan?')) return;
+    
+    setIsGeneratingAI(true);
     try {
-      // Nanti kita sambungin ke API generate-pptx-kelompok
-      window.location.href = `/api/generate-pptx-kelompok?group=${group}`;
-    } catch (error) {
-      alert('Gagal generate PPT');
+      const response = await fetch('/api/generate-roadmap-draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupId: group })
+      });
+      
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+      
+      const ai = result.data;
+      setProjectTitle(ai.project_title || '');
+      setMainProblem(ai.main_problem || '');
+      setTh2027(ai.roadmap_2027 || '');
+      setTh2028(ai.roadmap_2028 || '');
+      setTh2029(ai.roadmap_2029 || '');
+      setTh2030(ai.roadmap_2030 || '');
+      setIndicators(ai.indicators || '');
+      setRisks(ai.risks || '');
+      
+      alert('Draf Roadmap berhasil dibuat oleh AI! Silakan periksa dan edit jika perlu.');
+    } catch (err: any) {
+      alert('Gagal generate AI: ' + err.message);
     } finally {
-      setIsGenerating(false);
+      setIsGeneratingAI(false);
     }
   };
 
   return (
     <main className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-4xl mx-auto bg-white p-6 md:p-8 rounded-xl shadow-md">
-        <Link href="/" className="text-blue-600 text-sm hover:underline mb-4 inline-block">&larr; Kembali ke Dashboard</Link>
+        <Link href="/" className="text-blue-600 text-sm hover:underline mb-4 inline-block">
+          &larr; Kembali ke Dashboard
+        </Link>
         
         <h1 className="text-2xl font-bold text-blue-800 mb-2">Ruang Diskusi Kelompok {group}</h1>
         <p className="text-gray-500 mb-8">Kumpulan hasil pembelajaran dan refleksi dari seluruh anggota kelompok Anda.</p>
-      </div>
 
         {isLoading ? (
           <p className="text-center text-gray-500">Memuat data kelompok...</p>
@@ -139,9 +156,11 @@ export default function KelompokPage() {
           </div>
         )}
 
+        {/* TOMBOL GENERATE PPT */}
         <div className="border-t pt-6 mt-6">
           <h2 className="text-lg font-bold text-gray-800 mb-2">Susun Artefak Kelompok</h2>
           <p className="text-sm text-gray-500 mb-4">Klik tombol di bawah ini untuk menggabungkan seluruh hasil diskusi kelompok Anda menjadi satu file presentasi PowerPoint.</p>
+          
           <button 
             onClick={handleGenerateGroupPPT} 
             disabled={isGenerating || submissions.length === 0}
@@ -149,10 +168,26 @@ export default function KelompokPage() {
           >
             {isGenerating ? 'Menyusun Slide...' : '📥 Generate Slide Presentasi Kelompok'}
           </button>
-                  {/* FORM ROADMAP KELOMPOK (LK 01, 03, 06) */}
+        </div>
+
+        {/* FORM ROADMAP KELOMPOK */}
         <div className="mt-12 bg-white p-6 md:p-8 rounded-xl shadow-md border-t-4 border-indigo-600">
           <h2 className="text-xl font-bold text-indigo-800 mb-2">Kesepakatan & Roadmap Kelompok</h2>
-          <p className="text-sm text-gray-500 mb-6">Isi bagian ini dengan hasil diskusi dan *game* kelompok Anda. Data ini akan otomatis masuk ke file PowerPoint.</p>
+          
+          {/* TOMBOL AI */}
+          <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-6 flex flex-col md:flex-row justify-between items-center gap-4 mt-4">
+            <div>
+              <p className="text-sm font-bold text-yellow-800">Belum sempat diskusi roadmap?</p>
+              <p className="text-xs text-yellow-700">Klik tombol di samping untuk menyusun draf otomatis dari hasil SWOT anggota kelompok Anda.</p>
+            </div>
+            <button 
+              onClick={handleGenerateAIRoadmap}
+              disabled={isGeneratingAI}
+              className="bg-yellow-500 text-white px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-yellow-600 transition disabled:opacity-50 whitespace-nowrap"
+            >
+              {isGeneratingAI ? '✨ AI Sedang Berpikir...' : '✨ Buat Draf dengan AI'}
+            </button>
+          </div>
 
           <div className="space-y-4 mb-6">
             <div>
@@ -187,7 +222,7 @@ export default function KelompokPage() {
             {isSavingProj ? 'Menyimpan...' : '💾 Simpan Data Roadmap'}
           </button>
         </div>
-        </div>
+      </div>
     </main>
   );
 }
