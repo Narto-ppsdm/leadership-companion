@@ -48,6 +48,56 @@ export default function KelompokPage() {
     setIsLoading(false);
   };
 
+    // STATE ROADMAP KELOMPOK
+  const [projectTitle, setProjectTitle] = useState('');
+  const [mainProblem, setMainProblem] = useState('');
+  const [negosiasi, setNegosiasi] = useState('');
+  const [th2027, setTh2027] = useState('');
+  const [th2028, setTh2028] = useState('');
+  const [th2029, setTh2029] = useState('');
+  const [th2030, setTh2030] = useState('');
+  const [indicators, setIndicators] = useState('');
+  const [risks, setRisks] = useState('');
+  const [isSavingProj, setIsSavingProj] = useState(false);
+
+  // Load data roadmap kalau udah pernah disimpan
+  useEffect(() => {
+    const fetchProject = async () => {
+      const { data } = await supabase.from('group_project_data').select('*').eq('group_id', group).single();
+      if (data) {
+        setProjectTitle(data.project_title || '');
+        setMainProblem(data.main_problem || '');
+        setNegosiasi(data.negotiation_summary || '');
+        setTh2027(data.roadmap_2027 || '');
+        setTh2028(data.roadmap_2028 || '');
+        setTh2029(data.roadmap_2029 || '');
+        setTh2030(data.roadmap_2030 || '');
+        setIndicators(data.indicators || '');
+        setRisks(data.risks || '');
+      }
+    };
+    if (group) fetchProject();
+  }, [group]);
+
+  // Fungsi Simpan
+  const handleSaveRoadmap = async () => {
+    setIsSavingProj(true);
+    const payload = {
+      group_id: group,
+      project_title: projectTitle,
+      main_problem: mainProblem,
+      negotiation_summary: negosiasi,
+      roadmap_2027: th2027, roadmap_2028: th2028, roadmap_2029: th2029, roadmap_2030: th2030,
+      indicators: indicators, risks: risks,
+      updated_at: new Date().toISOString()
+    };
+
+    const { error } = await supabase.from('group_project_data').upsert(payload, { onConflict: 'group_id' });
+    if (error) alert('Gagal simpan: ' + error.message);
+    else alert('Data Roadmap Kelompok berhasil disimpan!');
+    setIsSavingProj(false);
+  };
+
   const handleGenerateGroupPPT = async () => {
     setIsGenerating(true);
     try {
@@ -67,6 +117,7 @@ export default function KelompokPage() {
         
         <h1 className="text-2xl font-bold text-blue-800 mb-2">Ruang Diskusi Kelompok {group}</h1>
         <p className="text-gray-500 mb-8">Kumpulan hasil pembelajaran dan refleksi dari seluruh anggota kelompok Anda.</p>
+      </div>
 
         {isLoading ? (
           <p className="text-center text-gray-500">Memuat data kelompok...</p>
@@ -98,8 +149,45 @@ export default function KelompokPage() {
           >
             {isGenerating ? 'Menyusun Slide...' : '📥 Generate Slide Presentasi Kelompok'}
           </button>
+                  {/* FORM ROADMAP KELOMPOK (LK 01, 03, 06) */}
+        <div className="mt-12 bg-white p-6 md:p-8 rounded-xl shadow-md border-t-4 border-indigo-600">
+          <h2 className="text-xl font-bold text-indigo-800 mb-2">Kesepakatan & Roadmap Kelompok</h2>
+          <p className="text-sm text-gray-500 mb-6">Isi bagian ini dengan hasil diskusi dan *game* kelompok Anda. Data ini akan otomatis masuk ke file PowerPoint.</p>
+
+          <div className="space-y-4 mb-6">
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">1. Judul Proyek & Masalah Utama (LK 01)</label>
+              <input type="text" value={projectTitle} onChange={(e) => setProjectTitle(e.target.value)} className="w-full border rounded-lg p-3 text-sm mb-2" placeholder="Judul Proyek..." />
+              <textarea value={mainProblem} onChange={(e) => setMainProblem(e.target.value)} className="w-full border rounded-lg p-3 text-sm" placeholder="Apa masalah utama yang ingin diselesaikan?" />
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">2. Ringkasan Negosiasi (LK 03 & 07)</label>
+              <textarea value={negosiasi} onChange={(e) => setNegosiasi(e.target.value)} className="w-full border rounded-lg p-3 text-sm" placeholder="Misal: Sepakat dengan Kelompok 6 untuk berbagi sumber daya RS Jejaring..." />
+            </div>
+
+            <div className="border p-4 rounded-lg bg-indigo-50/50">
+              <label className="block text-sm font-bold text-indigo-900 mb-3">3. Roadmap Indikator 2027-2030 (LK 06)</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div><label className="text-xs font-semibold text-gray-600">2027</label><textarea value={th2027} onChange={(e) => setTh2027(e.target.value)} className="w-full border rounded p-2 text-xs" /></div>
+                <div><label className="text-xs font-semibold text-gray-600">2028</label><textarea value={th2028} onChange={(e) => setTh2028(e.target.value)} className="w-full border rounded p-2 text-xs" /></div>
+                <div><label className="text-xs font-semibold text-gray-600">2029</label><textarea value={th2029} onChange={(e) => setTh2029(e.target.value)} className="w-full border rounded p-2 text-xs" /></div>
+                <div><label className="text-xs font-semibold text-gray-600">2030</label><textarea value={th2030} onChange={(e) => setTh2030(e.target.value)} className="w-full border rounded p-2 text-xs" /></div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">4. Indikator Keberhasilan, PIC & Risiko</label>
+              <textarea value={indicators} onChange={(e) => setIndicators(e.target.value)} className="w-full border rounded-lg p-3 text-sm mb-2" placeholder="Indikator & PIC..." />
+              <textarea value={risks} onChange={(e) => setRisks(e.target.value)} className="w-full border rounded-lg p-3 text-sm" placeholder="Risiko & Mitigasi..." />
+            </div>
+          </div>
+
+          <button onClick={handleSaveRoadmap} disabled={isSavingProj} className="w-full bg-indigo-600 text-white py-3.5 rounded-lg font-bold hover:bg-indigo-700 transition">
+            {isSavingProj ? 'Menyimpan...' : '💾 Simpan Data Roadmap'}
+          </button>
         </div>
-      </div>
+        </div>
     </main>
   );
 }
