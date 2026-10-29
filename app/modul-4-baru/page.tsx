@@ -40,12 +40,10 @@ export default function Modul4BaruPage() {
   const [group, setGroup] = useState('1');
   const [isHydrated, setIsHydrated] = useState(false);
 
-  // State Form
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2>(1);
   const [answers, setAnswers] = useState<{ [key: number]: number | 'NA' }>({});
   const [skorDimensi, setSkorDimensi] = useState<{ [key: string]: { rata: number, valid: number } }>({});
   
-  // State Isian Lanjutan
   const [kekuatan, setKekuatan] = useState('');
   const [fokus, setFokus] = useState('');
   const [tindakan, setTindakan] = useState('');
@@ -56,14 +54,13 @@ export default function Modul4BaruPage() {
   const [aiFeedback, setAiFeedback] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Load Draft dari LocalStorage
   useEffect(() => {
     setName(localStorage.getItem('peserta_name') || 'Anonim');
     setGroup(localStorage.getItem('peserta_group') || '1');
 
+    // KITA MATIKAN LOAD STEP BIAR SELALU MULAI DARI PERTANYAAN
     const savedAnswers = localStorage.getItem('draft_ei_answers');
     const savedForm = localStorage.getItem('draft_ei_form');
-    const savedStep = localStorage.getItem('draft_ei_step');
 
     if (savedAnswers) setAnswers(JSON.parse(savedAnswers));
     if (savedForm) {
@@ -75,12 +72,13 @@ export default function Modul4BaruPage() {
       setStrategi(form.strategi || '');
       setRefleksi(form.refleksi || '');
     }
-    if (savedStep) setStep(Number(savedStep) as 1 | 2 | 3);
+    
+    // SET SELALU KE STEP 1
+    setStep(1); 
 
     setIsHydrated(true);
   }, []);
 
-  // Auto-Save ke LocalStorage tiap ada perubahan
   useEffect(() => {
     if (!isHydrated) return;
     localStorage.setItem('draft_ei_answers', JSON.stringify(answers));
@@ -95,7 +93,7 @@ export default function Modul4BaruPage() {
   };
 
   const hitungSkor = () => {
-    const hasil: { [key: string]: { total: number, valid: number } } = {};
+    const hasil: { [key: string]: { rata: number, valid: number } } = {};
     dimensiList.forEach(dim => {
       const soalDim = pertanyaan.filter(p => p.dim === dim);
       let total = 0;
@@ -107,11 +105,7 @@ export default function Modul4BaruPage() {
           valid++;
         }
       });
-      if (valid >= 3) {
-        hasil[dim] = { rata: total / valid, valid };
-      } else {
-        hasil[dim] = { rata: 0, valid };
-      }
+      hasil[dim] = { rata: valid >= 3 ? total / valid : 0, valid };
     });
     setSkorDimensi(hasil);
     setStep(2);
@@ -155,7 +149,6 @@ export default function Modul4BaruPage() {
       
       alert('Refleksi EI & Profesionalisme berhasil disimpan!');
       
-      // Hapus draft setelah berhasil simpan
       localStorage.removeItem('draft_ei_answers');
       localStorage.removeItem('draft_ei_form');
       localStorage.removeItem('draft_ei_step');
@@ -229,37 +222,40 @@ export default function Modul4BaruPage() {
                       <div key={dim} className="flex justify-between items-center text-sm md:text-base border-b pb-2">
                         <span className="font-medium text-gray-700">{dim}</span>
                         <span className="font-bold text-blue-700">
-                          {data.valid >= 3 ? `${data.rata.toFixed(1)}/5` : <span className="text-red-500 text-xs">Jawaban belum cukup</span>}
-                          <span className="text-gray-400 text-xs ml-2 font-normal">({data.valid}/4)</span>
+                          {data?.valid >= 3 ? `${data.rata.toFixed(1)}/5` : <span className="text-red-500 text-xs">Jawaban belum cukup</span>}
+                          <span className="text-gray-400 text-xs ml-2 font-normal">({data?.valid || 0}/4)</span>
                         </span>
                       </div>
                     )
                   })}
                 </div>
+                <p className="text-xs text-gray-500 mt-4 italic">
+                  Hasil ini menggambarkan penilaian Anda terhadap kebiasaan sendiri. Pilih satu perilaku yang ingin dipertahankan dan satu perilaku yang ingin dilatih.
+                </p>
               </div>
 
               <h2 className="font-bold text-lg text-gray-800 pt-4">Isian Lanjutan</h2>
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">1. Kekuatan Pribadi</label>
-                  <input type="text" value={kekuatan} onChange={(e) => setKekuatan(e.target.value)} className="w-full border border-gray-300 rounded-lg p-3 text-sm" placeholder="Pilih dari 24 pernyataan..." />
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">1. Kekuatan Pribadi (Pilih dari 24 pernyataan di atas)</label>
+                  <input type="text" value={kekuatan} onChange={(e) => setKekuatan(e.target.value)} className="w-full border border-gray-300 rounded-lg p-3 text-sm" placeholder="Contoh: Saya bersedia mengubah pendapat..." />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">2. Fokus Latihan</label>
-                  <input type="text" value={fokus} onChange={(e) => setFokus(e.target.value)} className="w-full border border-gray-300 rounded-lg p-3 text-sm" placeholder="Pilih dari 24 pernyataan..." />
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">2. Fokus Latihan (Pilih dari 24 pernyataan di atas)</label>
+                  <input type="text" value={fokus} onChange={(e) => setFokus(e.target.value)} className="w-full border border-gray-300 rounded-lg p-3 text-sm" placeholder="Contoh: Saya berusaha memahami isi kritik..." />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">3. Tindakan Konkret</label>
-                  <textarea value={tindakan} onChange={(e) => setTindakan(e.target.value)} className="w-full border border-gray-300 rounded-lg p-3 text-sm min-h-[80px]" placeholder="Apa yang akan Anda lakukan?" />
+                  <textarea value={tindakan} onChange={(e) => setTindakan(e.target.value)} className="w-full border border-gray-300 rounded-lg p-3 text-sm min-h-[80px]" placeholder="Apa yang akan Anda lakukan agar perilaku tersebut terlihat?" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">4. Situasi Pemicu</label>
-                  <textarea value={pemicu} onChange={(e) => setPemicu(e.target.value)} className="w-full border border-gray-300 rounded-lg p-3 text-sm min-h-[80px]" placeholder="Situasi apa yang mungkin menyulitkan?" />
+                  <textarea value={pemicu} onChange={(e) => setPemicu(e.target.value)} className="w-full border border-gray-300 rounded-lg p-3 text-sm min-h-[80px]" placeholder="Situasi apa yang mungkin membuat Anda sulit menjalankan perilaku tersebut?" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">5. Strategi Pribadi</label>
-                  <textarea value={strategi} onChange={(e) => setStrategi(e.target.value)} className="w-full border border-gray-300 rounded-lg p-3 text-sm min-h-[80px]" placeholder="Apa strategi Anda?" />
+                  <textarea value={strategi} onChange={(e) => setStrategi(e.target.value)} className="w-full border border-gray-300 rounded-lg p-3 text-sm min-h-[80px]" placeholder="Apa yang akan Anda lakukan jika situasi tersebut muncul?" />
                 </div>
               </div>
 
@@ -275,12 +271,12 @@ export default function Modul4BaruPage() {
               )}
 
               <div className="pt-4 border-t mt-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Refleksi Pribadi (RTL)</label>
-                <textarea value={refleksi} onChange={(e) => setRefleksi(e.target.value)} className="w-full border border-gray-300 rounded-lg p-3 text-base text-black min-h-[120px] resize-y" placeholder="Apa yang akan Anda ubah?" />
+                <label className="block text-sm font-medium text-gray-700 mb-2">Refleksi Pribadi (Untuk RTL Anda)</label>
+                <textarea value={refleksi} onChange={(e) => setRefleksi(e.target.value)} className="w-full border border-gray-300 rounded-lg p-3 text-base text-black min-h-[120px] resize-y" placeholder="Apa yang akan Anda ubah dari cara Anda memimpin setelah materi ini?" />
               </div>
 
               <button onClick={handleSave} disabled={isSubmitting || !refleksi.trim()} className="w-full bg-blue-600 text-white py-3.5 rounded-lg font-bold hover:bg-blue-700 transition disabled:opacity-50">
-                {isSubmitting ? 'Menyimpan...' : 'Simpan Semua Hasil'}
+                {isSubmitting ? 'Menyimpan...' : 'Selesai & Kembali ke Dashboard'}
               </button>
             </div>
           )}

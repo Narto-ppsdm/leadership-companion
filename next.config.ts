@@ -2,12 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   typescript: {
-    // Ini bakal ngelewatin pengecekan tipe yang ketat pas build production
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    // Ini juga biar warning eslint gak bikin gagal deploy
-    ignoreDuringBuilds: true,
+    ignoreBuildErrors: true, // Tetep kita pake biar aman pas deploy
   },
 };
 

@@ -39,7 +39,7 @@ export async function GET() {
     }
 
     // 4. Minta AI untuk Mensintesis
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-.5-flash' });
     const prompt = `
       Kamu adalah Konsultan Strategis Pendidikan Tinggi.
       Di bawah ini adalah kumpulan data mentah dari 6 kelompok dosen FK UPNVJ. Mereka telah melakukan analisis SWOT dan menyusun Roadmap 2027-2030.
@@ -105,7 +105,7 @@ export async function GET() {
     });
 
     const buffer = await pptx.write({ outputType: "nodebuffer" });
-    return new NextResponse(buffer, {
+    return new NextResponse(buffer as any, {
       status: 200,
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
