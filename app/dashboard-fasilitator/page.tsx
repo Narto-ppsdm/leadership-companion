@@ -9,16 +9,27 @@ export default function FasilitatorPage() {
   const [notesData, setNotesData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Tambah 'swot' dan 'roadmap' ke dalam tipe state
-  const [activeTab, setActiveTab] = useState<'wleis' | 'notes' | 'swot' | 'roadmap'>('wleis');
+  // Tipe state activeTab ditambah 'ei-baru'
+  const [activeTab, setActiveTab] = useState<'wleis' | 'notes' | 'swot' | 'roadmap' | 'ei-baru'>('wleis');
   
   const [swotData, setSwotData] = useState<any[]>([]);
   const [roadmapData, setRoadmapData] = useState<any[]>([]);
+  const [eiBaruData, setEiBaruData] = useState<any[]>([]); // State baru buat EI
 
   // STATE UNTUK PASSWORD
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-    // State & Fungsi untuk Hapus Data
+  const [passwordInput, setPasswordInput] = useState('');
+  
+  // State untuk Modal Detail
+  const [selectedDetail, setSelectedDetail] = useState<any>(null);
+
+  // State & Fungsi untuk Hapus Data
   const [isResetting, setIsResetting] = useState(false);
+
+  // STATE UNTUK FITUR AI
+  const [selectedMods, setSelectedMods] = useState<number[]>([1, 2, 6, 9, 10]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [strategicPlan, setStrategicPlan] = useState<string | null>(null);
 
   const handleResetData = async () => {
     const confirm1 = confirm('⚠️ PERINGATAN KERAS!\n\nApakah Anda yakin ingin MENGHAPUS SEMUA DATA peserta, catatan, dan roadmap?\n\nTindakan ini tidak bisa dibatalkan!');
@@ -31,24 +42,16 @@ export default function FasilitatorPage() {
     try {
       const response = await fetch('/api/reset-data', { method: 'DELETE' });
       const result = await response.json();
-      
       if (!response.ok) throw new Error(result.error);
       
       alert('Semua data berhasil dibersihkan!');
-      fetchData(); // Refresh tabel biar kosong
+      fetchData(); 
     } catch (err: any) {
       alert('Gagal menghapus data: ' + err.message);
     } finally {
       setIsResetting(false);
     }
   };
-
-  const [passwordInput, setPasswordInput] = useState('');
-  
-  // STATE UNTUK FITUR AI
-  const [selectedMods, setSelectedMods] = useState<number[]>([1, 2, 6, 9, 10]);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [strategicPlan, setStrategicPlan] = useState<string | null>(null);
 
   // Cek apakah udah pernah login di browser ini
   useEffect(() => {
@@ -102,7 +105,7 @@ export default function FasilitatorPage() {
   const fetchData = async () => {
     setIsLoading(true);
     
-    // 1. Ambil data WLEIS (Modul 4)
+    // 1. Ambil data WLEIS (Modul 4 Lama)
     const { data: wleis } = await supabase.from('individual_submissions').select('*').eq('module_id', 4).order('created_at', { ascending: false });
     
     // 2. Ambil data Catatan Pribadi
@@ -114,12 +117,44 @@ export default function FasilitatorPage() {
     // 4. Ambil data Roadmap Kelompok
     const { data: roadmap } = await supabase.from('group_project_data').select('*').order('updated_at', { ascending: false });
 
+    // 5. Ambil data Refleksi EI Baru (Modul 40)
+    const { data: eiBaru } = await supabase.from('individual_submissions').select('*').eq('module_id', 40).order('created_at', { ascending: false });
+
     if (wleis) setWleisData(wleis);
     if (notes) setNotesData(notes);
     if (swot) setSwotData(swot);
     if (roadmap) setRoadmapData(roadmap);
+    if (eiBaru) setEiBaruData(eiBaru);
     
     setIsLoading(false);
+  };
+
+  // Komponen Modal Pop-up
+  const renderModal = () => {
+    if (!selectedDetail) return null;
+    return (
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+          <div className="flex justify-between items-center p-4 border-b">
+            <h3 className="font-bold text-lg text-gray-800">Detail Data</h3>
+            <button onClick={() => setSelectedDetail(null)} className="text-gray-500 hover:text-red-500 font-bold text-xl">&times;</button>
+          </div>
+          <div className="p-6 overflow-y-auto space-y-4 text-sm text-gray-700">
+            {Object.entries(selectedDetail).map(([key, value]) => (
+              <div key={key}>
+                <p className="font-semibold text-gray-500 uppercase text-xs mb-1">{key.replace(/_/g, ' ')}</p>
+                <p className="bg-gray-50 p-3 rounded border">
+                  {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value) || '-'}
+                </p>
+              </div>
+            ))}
+          </div>
+          <div className="p-4 border-t text-right">
+            <button onClick={() => setSelectedDetail(null)} className="bg-gray-800 text-white px-6 py-2 rounded-lg hover:bg-gray-900 transition">Tutup</button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // ==========================================
@@ -169,14 +204,13 @@ export default function FasilitatorPage() {
             <p className="text-gray-500">Pantau progres peserta LDK FK UPNVJ</p>
           </div>
           <div className="flex gap-4 items-center">
-                        <button 
+            <button 
               onClick={handleResetData}
               disabled={isResetting}
               className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition shadow-sm disabled:opacity-50"
             >
               {isResetting ? 'Menghapus...' : '🗑️ Hapus Data'}
             </button>
-
             <a href="/api/generate-master-pptx" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition shadow-sm">
               📥 Generate Master PPTX
             </a>
@@ -195,7 +229,7 @@ export default function FasilitatorPage() {
         {/* Ringkasan Statistik */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
-            <h3 className="text-gray-500 text-sm font-medium">Total WLEIS</h3>
+            <h3 className="text-gray-500 text-sm font-medium">Total WLEIS (Lama)</h3>
             <p className="text-3xl font-bold text-blue-800">{wleisData.length} <span className="text-sm text-gray-400 font-normal">Peserta</span></p>
           </div>
           <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
@@ -210,10 +244,7 @@ export default function FasilitatorPage() {
              <button onClick={fetchData} className="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-900 transition">
                 🔄 Refresh Data
              </button>
-                          <a 
-               href="/api/export-data" 
-               className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-emerald-700 transition flex items-center gap-1"
-             >
+             <a href="/api/export-data" className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-emerald-700 transition flex items-center gap-1">
                📊 Export Excel
              </a>
           </div>
@@ -255,8 +286,11 @@ export default function FasilitatorPage() {
 
         {/* Tabs Navigasi */}
         <div className="flex flex-wrap gap-2 mb-4">
+          <button onClick={() => setActiveTab('ei-baru')} className={`px-4 py-2 rounded-lg font-semibold text-sm transition ${activeTab === 'ei-baru' ? 'bg-teal-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+            Refleksi EI (Baru)
+          </button>
           <button onClick={() => setActiveTab('wleis')} className={`px-4 py-2 rounded-lg font-semibold text-sm transition ${activeTab === 'wleis' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
-            Data WLEIS (EQ)
+            Data WLEIS (Lama)
           </button>
           <button onClick={() => setActiveTab('notes')} className={`px-4 py-2 rounded-lg font-semibold text-sm transition ${activeTab === 'notes' ? 'bg-green-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
             Catatan Materi Lain
@@ -273,6 +307,53 @@ export default function FasilitatorPage() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           {isLoading ? (
             <div className="p-10 text-center text-gray-500">Memuat data...</div>
+          ) : activeTab === 'ei-baru' ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="p-4 text-sm font-semibold text-gray-600">Nama Peserta</th>
+                    <th className="p-4 text-sm font-semibold text-gray-600">Kelompok</th>
+                    <th className="p-4 text-sm font-semibold text-gray-600">Fokus Latihan</th>
+                    <th className="p-4 text-sm font-semibold text-gray-600">Tindakan Konkret</th>
+                    <th className="p-4 text-sm font-semibold text-gray-600">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {eiBaruData.length === 0 ? (
+                    <tr><td colSpan={5} className="p-6 text-center text-gray-500">Belum ada data Refleksi EI (Baru) yang masuk.</td></tr>
+                  ) : (
+                    eiBaruData.map((row) => (
+                      <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="p-4 font-medium text-gray-800">{row.payload?.name || 'Anonim'}</td>
+                        <td className="p-4 text-gray-600">Kelompok {row.payload?.group || '-'}</td>
+                        <td className="p-4 text-sm text-gray-600 max-w-xs truncate" title={row.payload?.fokus}>{row.payload?.fokus || '-'}</td>
+                        <td className="p-4 text-sm text-gray-600 max-w-xs truncate" title={row.payload?.tindakan}>{row.payload?.tindakan || '-'}</td>
+                        <td className="p-4">
+                          <button 
+                            onClick={() => setSelectedDetail({ 
+                              Nama: row.payload?.name, 
+                              Kelompok: row.payload?.group, 
+                              'Skor Dimensi': row.payload?.skor_dimensi, 
+                              'Kekuatan Pribadi': row.payload?.kekuatan,
+                              'Fokus Latihan': row.payload?.fokus,
+                              'Tindakan Konkret': row.payload?.tindakan,
+                              'Situasi Pemicu': row.payload?.pemicu,
+                              'Strategi Pribadi': row.payload?.strategi,
+                              'Respon AI': row.ai_feedback,
+                              Refleksi: row.reflection
+                            })} 
+                            className="bg-teal-100 text-teal-700 px-3 py-1 rounded text-xs font-semibold hover:bg-teal-200"
+                          >
+                            Lihat
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           ) : activeTab === 'wleis' ? (
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
@@ -282,11 +363,12 @@ export default function FasilitatorPage() {
                     <th className="p-4 text-sm font-semibold text-gray-600">Kelompok</th>
                     <th className="p-4 text-sm font-semibold text-gray-600">Skor EQ</th>
                     <th className="p-4 text-sm font-semibold text-gray-600">Respon AI</th>
+                    <th className="p-4 text-sm font-semibold text-gray-600">Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
                   {wleisData.length === 0 ? (
-                    <tr><td colSpan={4} className="p-6 text-center text-gray-500">Belum ada data WLEIS yang masuk.</td></tr>
+                    <tr><td colSpan={5} className="p-6 text-center text-gray-500">Belum ada data WLEIS yang masuk.</td></tr>
                   ) : (
                     wleisData.map((row) => (
                       <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50">
@@ -294,6 +376,14 @@ export default function FasilitatorPage() {
                         <td className="p-4 text-gray-600">Kelompok {row.payload?.group || '-'}</td>
                         <td className="p-4 font-bold text-blue-600">{row.total_score} / 80</td>
                         <td className="p-4 text-sm text-gray-600 max-w-md truncate" title={row.ai_feedback}>{row.ai_feedback}</td>
+                        <td className="p-4">
+                          <button 
+                            onClick={() => setSelectedDetail({ Nama: row.payload?.name, Kelompok: row.payload?.group, Skor: row.total_score, 'Respon AI': row.ai_feedback, 'Jawaban': row.payload?.answers })} 
+                            className="bg-blue-100 text-blue-700 px-3 py-1 rounded text-xs font-semibold hover:bg-blue-200"
+                          >
+                            Lihat
+                          </button>
+                        </td>
                       </tr>
                     ))
                   )}
@@ -337,11 +427,12 @@ export default function FasilitatorPage() {
                     <th className="p-4 text-sm font-semibold text-gray-600">Aspek</th>
                     <th className="p-4 text-sm font-semibold text-gray-600">Rencana Aksi (Roadmap)</th>
                     <th className="p-4 text-sm font-semibold text-gray-600">Respon AI</th>
+                    <th className="p-4 text-sm font-semibold text-gray-600">Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
                   {swotData.length === 0 ? (
-                    <tr><td colSpan={4} className="p-6 text-center text-gray-500">Belum ada data SWOT yang masuk.</td></tr>
+                    <tr><td colSpan={5} className="p-6 text-center text-gray-500">Belum ada data SWOT yang masuk.</td></tr>
                   ) : (
                     swotData.map((row) => (
                       <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50">
@@ -349,6 +440,14 @@ export default function FasilitatorPage() {
                         <td className="p-4 text-gray-600">{row.payload?.aspek || '-'}</td>
                         <td className="p-4 text-sm text-gray-600 max-w-md truncate" title={row.payload?.action_plan}>{row.payload?.action_plan}</td>
                         <td className="p-4 text-sm text-gray-600 max-w-md truncate" title={row.ai_feedback}>{row.ai_feedback}</td>
+                        <td className="p-4">
+                          <button 
+                            onClick={() => setSelectedDetail({ Nama: row.payload?.name, Aspek: row.payload?.aspek, Strength: row.payload?.swot?.strength, Weakness: row.payload?.swot?.weakness, Opportunity: row.payload?.swot?.opportunity, Threat: row.payload?.swot?.threat, 'Rencana Aksi': row.payload?.action_plan, 'Respon AI': row.ai_feedback })} 
+                            className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-xs font-semibold hover:bg-indigo-200"
+                          >
+                            Lihat
+                          </button>
+                        </td>
                       </tr>
                     ))
                   )}
@@ -365,11 +464,12 @@ export default function FasilitatorPage() {
                     <th className="p-4 text-sm font-semibold text-gray-600">Judul Proyek</th>
                     <th className="p-4 text-sm font-semibold text-gray-600">Roadmap 2027</th>
                     <th className="p-4 text-sm font-semibold text-gray-600">Indikator & PIC</th>
+                    <th className="p-4 text-sm font-semibold text-gray-600">Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
                   {roadmapData.length === 0 ? (
-                    <tr><td colSpan={4} className="p-6 text-center text-gray-500">Belum ada data Roadmap Kelompok yang masuk.</td></tr>
+                    <tr><td colSpan={5} className="p-6 text-center text-gray-500">Belum ada data Roadmap Kelompok yang masuk.</td></tr>
                   ) : (
                     roadmapData.map((row) => (
                       <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50">
@@ -377,6 +477,14 @@ export default function FasilitatorPage() {
                         <td className="p-4 font-medium text-gray-800">{row.project_title}</td>
                         <td className="p-4 text-sm text-gray-600 max-w-xs truncate" title={row.roadmap_2027}>{row.roadmap_2027}</td>
                         <td className="p-4 text-sm text-gray-600 max-w-xs truncate" title={row.indicators}>{row.indicators}</td>
+                        <td className="p-4">
+                          <button 
+                            onClick={() => setSelectedDetail({ Kelompok: row.group_id, 'Judul Proyek': row.project_title, Masalah: row.main_problem, Negosiasi: row.negotiation_summary, 'Roadmap 2027': row.roadmap_2027, 'Roadmap 2028': row.roadmap_2028, 'Roadmap 2029': row.roadmap_2029, 'Roadmap 2030': row.roadmap_2030, 'Indikator & PIC': row.indicators, 'Risiko & Mitigasi': row.risks })} 
+                            className="bg-purple-100 text-purple-700 px-3 py-1 rounded text-xs font-semibold hover:bg-purple-200"
+                          >
+                            Lihat
+                          </button>
+                        </td>
                       </tr>
                     ))
                   )}
@@ -387,6 +495,10 @@ export default function FasilitatorPage() {
         </div>
 
       </div>
+      
+      {/* PANGGIL MODAL DI SINI */}
+      {renderModal()}
+
     </main>
   );
 }
