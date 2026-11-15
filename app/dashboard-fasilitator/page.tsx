@@ -17,6 +17,32 @@ export default function FasilitatorPage() {
 
   // STATE UNTUK PASSWORD
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+    // State & Fungsi untuk Hapus Data
+  const [isResetting, setIsResetting] = useState(false);
+
+  const handleResetData = async () => {
+    const confirm1 = confirm('⚠️ PERINGATAN KERAS!\n\nApakah Anda yakin ingin MENGHAPUS SEMUA DATA peserta, catatan, dan roadmap?\n\nTindakan ini tidak bisa dibatalkan!');
+    if (!confirm1) return;
+
+    const confirm2 = prompt('Ketik kata "HAPUS" (huruf besar) untuk melanjutkan:');
+    if (confirm2 !== 'HAPUS') return alert('Konfirmasi gagal. Data tidak dihapus.');
+
+    setIsResetting(true);
+    try {
+      const response = await fetch('/api/reset-data', { method: 'DELETE' });
+      const result = await response.json();
+      
+      if (!response.ok) throw new Error(result.error);
+      
+      alert('Semua data berhasil dibersihkan!');
+      fetchData(); // Refresh tabel biar kosong
+    } catch (err: any) {
+      alert('Gagal menghapus data: ' + err.message);
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   const [passwordInput, setPasswordInput] = useState('');
   
   // STATE UNTUK FITUR AI
@@ -143,6 +169,14 @@ export default function FasilitatorPage() {
             <p className="text-gray-500">Pantau progres peserta LDK FK UPNVJ</p>
           </div>
           <div className="flex gap-4 items-center">
+                        <button 
+              onClick={handleResetData}
+              disabled={isResetting}
+              className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition shadow-sm disabled:opacity-50"
+            >
+              {isResetting ? 'Menghapus...' : '🗑️ Hapus Data'}
+            </button>
+
             <a href="/api/generate-master-pptx" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition shadow-sm">
               📥 Generate Master PPTX
             </a>
